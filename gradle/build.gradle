@@ -1,0 +1,136 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath "com.gemnasium:gradle-plugin:0.3"
+        classpath "com.github.alisiikh:gradle-scalastyle-plugin:3.3.0"
+        classpath "gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.0.4"
+        classpath "gradle.plugin.org.scoverage:gradle-scoverage:4.0.1"
+    }
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+ext.scoverage_minimum_rate_value = new BigDecimal(project.property("scoverage_minimum_rate"))
+
+version = project_version
+group = project_group
+println "Building project ${project.name} in ${projectDir} with version ${version}"
+
+apply plugin: "org.scoverage"
+rootProject.tasks.check.finalizedBy rootProject.tasks.reportScoverage
+
+task testReport(type: TestReport) {
+    destinationDir = file("$buildDir/reports/allTests")
+    subprojects {
+        reportOn { tasks.withType(Test) }
+    }
+}
+rootProject.tasks.test.finalizedBy rootProject.tasks.testReport
+
+subprojects {
+    version = parent.version
+    group = parent.group
+    println "Building project ${project.name} in ${projectDir} with version ${version}"
+
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+    apply plugin: "com.gemnasium.gradle-plugin"
+    apply plugin: "com.github.spotbugs"
+    apply plugin: "com.github.alisiikh.scalastyle"
+    apply plugin: "org.scoverage"
+    apply plugin: "scala"
+
+    gemnasiumGradlePlugin {
+        outputDir = file("$projectDir/build/reports/gemnasium/")
+    }
+    tasks.check.dependsOn(tasks.gemnasiumDumpDependencies)
+
+    scalastyle {
+        scalaVersion = scala_version
+        config = file("$rootProject.projectDir/config/scalastyle/scalastyle.xml")
+        failOnWarning = project.property("scalastyle_fail_on_warning").toBoolean()
+        sourceSets {
+            main {
+                output = file("$projectDir/build/reports/scalastyle/main.xml")
+            }
+            test {
+                output = file("$projectDir/build/reports/scalastyle/test.xml")
+            }
+        }
+        verbose = false
+        quiet = true
+    }
+    scoverage {
+        minimumRate = scoverage_minimum_rate_value
+        scoverageScalaVersion = scala_version
+    }
+    if (new File(project.projectDir.toString() + "/src/main/scala/").exists()) {
+        tasks.check.dependsOn tasks.checkScoverage
+    }
+    spotbugs {
+        toolVersion = "3.1.12"
+        effort = "max"
+        reportLevel = spotbugs_level
+        excludeFilter = file("$rootProject.projectDir/config/spotbugs/exclude.xml")
+        ignoreFailures = false
+    }
+    spotbugsMain {
+        reports{
+            html.enabled = true
+            xml.enabled = false
+        }
+    }
+    spotbugsScoverage.enabled = false
+    spotbugsTest.enabled = false
+
+
+    test.jvmArgs '-XX:+UseParallelGC'
+    configurations {
+        testImplementation.extendsFrom compileOnly
+    }
+    dependencies {
+        compileOnly group: "org.apache.spark", name: "spark-core_${scala_version}", version: "${spark_version}"
+        compileOnly group: "org.apache.spark", name: "spark-sql_${scala_version}", version: "${spark_version}"
+        compileOnly group: "org.apache.spark", name: "spark-hive_${scala_version}", version: "${spark_version}"
+        compile group: "org.scala-lang", name: "scala-library", version: "${scala_version}.+"
+        compile group: "ch.qos.logback", name: "logback-classic", version: "${logback_classic_version}"
+        compile group: "org.slf4j", name: "log4j-over-slf4j", version: "${log4j_over_slf4j_version}"
+        compile group: "com.github.scopt", name: "scopt_${scala_version}", version: "${scopt_version}"
+        testCompile group: "com.holdenkarau", name: "spark-testing-base_${scala_version}", version: "${spark_testing_base_version}"
+        testCompile group: "org.scalatest", name: "scalatest_${scala_version}", version: "${scala_test_version}"
+        testCompile group: "junit", name: "junit", version: "${junit_version}"
+    }
+    jar {
+        zip64 true
+    }
+}
+
+apply plugin: "distribution"
+distributions {
+    main {
+        distributionBaseName = rootProject.name
+        contents {
+            project.subprojects.each { sub ->
+                into("${sub.name}") {
+                    from sub.jar
+                }
+                into("${sub.name}/lib/") {
+                    from(sub.configurations.compile)
+                }
+            }
+        }
+    }
+}
+tasks.withType(Tar) {
+    compression = Compression.GZIP
+}
+

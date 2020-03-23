@@ -1,0 +1,3 @@
+rootProject.name = 'spark-gradle-template'
+include 'spark1'
+include 'spark2'
