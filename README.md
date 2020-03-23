@@ -37,7 +37,7 @@ An empty project as its just to show the build process.
 ```
 ./gradlew check
 ```
-* In case of publishing the artifacts either individual module jar or the tarball from distribution, maben-publish can be used.
+* In case of publishing the artifacts either individual module jar or the tarball from distribution, maven-publish can be used.
 
 ### Customization
 All the properties in gradle.properties can be customized to control the build operation
@@ -62,6 +62,9 @@ junit_version=4+
 * Spotbugs - spark1/build/reports/spotbugs/main.html
 * Scoverage - spark1/build/reports/scoverage/index.html
 * Gemnasium - spark1/build/reports/gemnasium/gradle-dependencies.json
+
+### Binary distribution
+Final distribution is available in build/distributions/ both in zip and tar.gz format
 
 ## References
 * Multiple github account setup [https://gist.github.com/oanhnn/80a89405ab9023894df7]
