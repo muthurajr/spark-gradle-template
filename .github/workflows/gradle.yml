@@ -18,9 +18,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew -x test clean build
+      run: ./gradlew -x test -x check clean build
     - name: Test with Gradle
-      run: ./gradlew test
+      run: ./gradlew test check
     - name: Archive build artifacts
       uses: actions/upload-artifact@v1
       with:
